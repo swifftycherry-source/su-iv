@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d7a6b"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png">
+<title>บันทึกสารน้ำ SU</title>
+<style>
+:root{--bg:#f4f7fa;--cd:#fff;--tx:#1b2430;--mu:#5d6b7c;--bd:#d5dde8;--pr:#0d7a6b;--on:#fff;--dg:#c0392b}
+@media(prefers-color-scheme:dark){:root{--bg:#0f151c;--cd:#18212b;--tx:#e6edf5;--mu:#93a1b3;--bd:#2c3846;--pr:#38b2a0;--on:#06231f;--dg:#ff7b6b}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 "Sarabun","Noto Sans Thai",system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{background:var(--pr);color:var(--on);padding:14px;border-radius:0 0 16px 16px}header h1{margin:0;font-size:18px}header small{opacity:.85}
+main{padding:10px;max-width:760px;margin:auto}.card{background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:12px}
+h2{font-size:15px;margin:0 0 8px}label{display:block;font-size:12px;color:var(--mu);margin-top:8px}
+input,select,textarea,button{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;width:100%}
+button{width:auto;cursor:pointer}.p{background:var(--pr);color:var(--on);border-color:var(--pr);font-weight:700;padding:12px 26px}.d{color:var(--dg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{padding:10px 14px;border-radius:999px;font-weight:600}.chip.on{background:var(--pr);color:var(--on);border-color:var(--pr)}
+.st{display:flex;gap:4px;align-items:center}.st input{text-align:center;min-width:0;padding:8px 2px}.st button{padding:8px 13px;font-weight:700}
+.g{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:3px;text-align:center;border-bottom:1px solid var(--bd)}
+.row{display:grid;grid-template-columns:1fr 70px;gap:6px;margin-bottom:8px}.row .w{grid-column:1/-1}
+#wn{position:sticky;top:0;z-index:9;padding:9px 12px;font-weight:600;background:#fff3cd;color:#664d03}.ok{background:#d1e7dd!important;color:#0f5132!important}.hide{display:none}
+</style></head><body>
+<header><h1>บันทึกสารน้ำ/ยา/เลือด · อุบัติการณ์ · RRT IV</h1><small>Stroke Unit · ข้อมูลเข้า Google Sheet ทันที · ไม่ต้องใส่รหัส</small></header>
+<div id="wn" class="hide"></div>
+<main>
+<div class="card"><h2 id="ft">เพิ่มรายการบันทึก</h2>
+<label>วันที่</label><input type="date" id="dt">
+<label>เวร</label><div class="chips" id="shc"></div>
+<label>เจ้าหน้าที่ (แตะที่ชื่อ)</label><div class="chips" id="sfc"></div>
+<div class="g"><div><label>ประเมิน DIVA (ครั้ง)</label><input type="number" id="dv"></div><div><label>ยอดยกมา ตน. IV</label><input type="number" id="cy"></div>
+<div><label>Off เส้น (ครั้ง)</label><input type="number" id="of"></div><div><label>ขอคำปรึกษา RRT IV (ครั้ง)</label><input type="number" id="rt"></div></div>
+<h2 style="margin-top:14px">ตำแหน่งแทง IV (ครั้ง)</h2><table id="st"></table>
+<h2 style="margin-top:14px">ภาวะแทรกซ้อน / อุบัติการณ์</h2><div id="cp"></div><button type="button" id="addc">+ เพิ่มภาวะแทรกซ้อน</button>
+<label>หมายเหตุ</label><textarea id="nt" rows="2"></textarea>
+<div style="margin-top:12px"><button class="p" id="sv">บันทึกลง Google Sheet</button></div></div>
+<p style="color:var(--mu);font-size:13px;text-align:center">ถ้าลงผิด แจ้งผู้ดูแลชีตให้แก้ไขในแท็บ "บันทึก"</p>
+</main>
+<script>
+const API='วาง_WEB_APP_URL_จาก_APPS_SCRIPT_ที่นี่';
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SH={ด:'ดึก',ช:'เช้า',บ:'บ่าย'},POS=['ต้นแขน','ข้อพับ','หลังมือ','ข้อมือ','ขา','เท้า','ศีรษะ','อื่น ๆ'],TY=['Extravasation','Phlebitis','Infiltration'];
+const n=v=>+v||0,p2=x=>String(x).padStart(2,'0');
+let staff=[],sh='',sf='';
+const T=new Date(),today=T.getFullYear()+'-'+p2(T.getMonth()+1)+'-'+p2(T.getDate());
+function toast(t,ok){const w=$('#wn');w.textContent=t;w.className=ok?'ok':'';if(ok)setTimeout(()=>w.classList.add('hide'),2500)}
+async function api(a,p={}){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({a,...p})});const j=await r.json();if(j.error)throw j.error;return j}
+$('#st').innerHTML='<tr><th></th><th>ซ้าย</th><th>ขวา</th></tr>'+POS.map((p,i)=>`<tr><td>${p}</td><td><input type="number" id="L${i}"></td><td><input type="number" id="R${i}"></td></tr>`).join('');
+document.querySelectorAll('input[type=number]').forEach(i=>{const w=document.createElement('div');w.className='st';i.parentNode.insertBefore(w,i);const m=document.createElement('button'),q=document.createElement('button');m.type=q.type='button';m.textContent='−';q.textContent='+';w.append(m,i,q);m.onclick=()=>{i.value=Math.max(0,n(i.value)-1)};q.onclick=()=>{i.value=n(i.value)+1}});
+$('#shc').innerHTML=Object.keys(SH).map(k=>`<button type="button" class="chip" data-v="${k}">${SH[k]}</button>`).join('');
+$('#shc').onclick=e=>{const b=e.target.closest('.chip');if(b){sh=b.dataset.v;sync()}};
+$('#sfc').onclick=e=>{const b=e.target.closest('.chip');if(b){sf=staff[b.dataset.i];sync()}};
+function sync(){document.querySelectorAll('#shc .chip').forEach(b=>b.classList.toggle('on',b.dataset.v===sh));document.querySelectorAll('#sfc .chip').forEach(b=>b.classList.toggle('on',staff[b.dataset.i]===sf))}
+function addC(){const d=document.createElement('div');d.className='row';d.innerHTML=`<select class="ct">${TY.map(t=>`<option>${t}</option>`).join('')}</select><select class="cg">${[1,2,3,4].map(g=>`<option>${g}</option>`).join('')}</select><input class="ch w" placeholder="HN ผู้ป่วย"><input class="cc w" placeholder="สาเหตุเบื้องต้น"><button type="button" class="d w" onclick="this.parentNode.remove()">ลบรายการนี้</button>`;$('#cp').appendChild(d)}
+$('#addc').onclick=addC;
+function clearForm(){['dv','cy','of','rt','nt'].forEach(i=>$('#'+i).value='');POS.forEach((_,i)=>{$('#L'+i).value='';$('#R'+i).value=''});$('#cp').innerHTML=''}
+$('#sv').onclick=async()=>{if(!$('#dt').value||!sh||!sf){toast('กรุณาเลือกวันที่ เวร และแตะชื่อเจ้าหน้าที่');return}
+const L=POS.map((_,i)=>n($('#L'+i).value)),R=POS.map((_,i)=>n($('#R'+i).value)),c=[...$('#cp').children].map(d=>({t:d.querySelector('.ct').value,g:+d.querySelector('.cg').value,h:d.querySelector('.ch').value.trim(),c:d.querySelector('.cc').value.trim()}));
+const row=[$('#dt').value,sh,sf,n($('#dv').value),n($('#cy').value),...L,...R,[...L,...R].reduce((a,b)=>a+b,0),n($('#of').value),n($('#rt').value),...TY.flatMap(t=>[1,2,3,4].map(g=>c.filter(x=>x.t===t&&x.g===g).length)),c.map(x=>`${x.t} Gr.${x.g} HN:${x.h} ${x.c}`).join(' | '),$('#nt').value.trim()];
+try{$('#sv').disabled=true;toast('กำลังบันทึก...');await api('add',{row});clearForm();toast('บันทึกแล้ว ✓',1);}catch(e){toast('บันทึกไม่สำเร็จ: '+e)}finally{$('#sv').disabled=false}};
+$('#dt').value=today;const h=T.getHours();sh=h<8?'ด':h<16?'ช':'บ';sync();
+if(API.indexOf('http')!==0)toast('ยังไม่ได้ใส่ URL ของ Apps Script ในไฟล์ index.html (บรรทัด const API)');
+else fetch(API).then(r=>r.json()).then(j=>{staff=j.staff;$('#sfc').innerHTML=staff.map((x,i)=>`<button type="button" class="chip" data-i="${i}">${esc(x.replace(/^(น\.ส\.|นาย|นาง)\s*/,''))}</button>`).join('');sync()}).catch(e=>toast('เชื่อมต่อไม่ได้: '+e));
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>
