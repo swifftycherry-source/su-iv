@@ -24,7 +24,7 @@ button{width:auto;cursor:pointer}.p{background:var(--pr);color:var(--on);border-
 <div class="card"><h2 id="ft">เพิ่มรายการบันทึก</h2>
 <label>วันที่</label><input type="date" id="dt">
 <label>เวร</label><div class="chips" id="shc"></div>
-<label>เจ้าหน้าที่ (แตะที่ชื่อ)</label><div class="chips" id="sfc"></div>
+<label>เจ้าหน้าที่ (เลือกชื่อ)</label><select id="sfc"><option value="">กำลังโหลดรายชื่อ...</option></select>
 <div class="g"><div><label>ประเมิน DIVA (ครั้ง)</label><input type="number" id="dv"></div><div><label>ยอดยกมา ตน. IV</label><input type="number" id="cy"></div>
 <div><label>Off เส้น (ครั้ง)</label><input type="number" id="of"></div><div><label>ขอคำปรึกษา RRT IV (ครั้ง)</label><input type="number" id="rt"></div></div>
 <h2 style="margin-top:14px">ตำแหน่งแทง IV (ครั้ง)</h2><table id="st"></table>
@@ -34,7 +34,7 @@ button{width:auto;cursor:pointer}.p{background:var(--pr);color:var(--on);border-
 <p style="color:var(--mu);font-size:13px;text-align:center">ถ้าลงผิด แจ้งผู้ดูแลชีตให้แก้ไขในแท็บ "บันทึก"</p>
 </main>
 <script>
-const API='วาง_WEB_APP_URL_จาก_APPS_SCRIPT_ที่นี่';
+const API='https://script.google.com/macros/s/AKfycbw2vgAQlQu2iK1nTdRyEQtPZReECltQNaac6DVSRhn-WEDXGwk2dIybyAlSDzHXW5gQIg/exec';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const SH={ด:'ดึก',ช:'เช้า',บ:'บ่าย'},POS=['ต้นแขน','ข้อพับ','หลังมือ','ข้อมือ','ขา','เท้า','ศีรษะ','อื่น ๆ'],TY=['Extravasation','Phlebitis','Infiltration'];
 const n=v=>+v||0,p2=x=>String(x).padStart(2,'0');
@@ -46,8 +46,8 @@ $('#st').innerHTML='<tr><th></th><th>ซ้าย</th><th>ขวา</th></tr>'+P
 document.querySelectorAll('input[type=number]').forEach(i=>{const w=document.createElement('div');w.className='st';i.parentNode.insertBefore(w,i);const m=document.createElement('button'),q=document.createElement('button');m.type=q.type='button';m.textContent='−';q.textContent='+';w.append(m,i,q);m.onclick=()=>{i.value=Math.max(0,n(i.value)-1)};q.onclick=()=>{i.value=n(i.value)+1}});
 $('#shc').innerHTML=Object.keys(SH).map(k=>`<button type="button" class="chip" data-v="${k}">${SH[k]}</button>`).join('');
 $('#shc').onclick=e=>{const b=e.target.closest('.chip');if(b){sh=b.dataset.v;sync()}};
-$('#sfc').onclick=e=>{const b=e.target.closest('.chip');if(b){sf=staff[b.dataset.i];sync()}};
-function sync(){document.querySelectorAll('#shc .chip').forEach(b=>b.classList.toggle('on',b.dataset.v===sh));document.querySelectorAll('#sfc .chip').forEach(b=>b.classList.toggle('on',staff[b.dataset.i]===sf))}
+$('#sfc').onchange=e=>{sf=staff[e.target.value]||''};
+function sync(){document.querySelectorAll('#shc .chip').forEach(b=>b.classList.toggle('on',b.dataset.v===sh))}
 function addC(){const d=document.createElement('div');d.className='row';d.innerHTML=`<select class="ct">${TY.map(t=>`<option>${t}</option>`).join('')}</select><select class="cg">${[1,2,3,4].map(g=>`<option>${g}</option>`).join('')}</select><input class="ch w" placeholder="HN ผู้ป่วย"><input class="cc w" placeholder="สาเหตุเบื้องต้น"><button type="button" class="d w" onclick="this.parentNode.remove()">ลบรายการนี้</button>`;$('#cp').appendChild(d)}
 $('#addc').onclick=addC;
 function clearForm(){['dv','cy','of','rt','nt'].forEach(i=>$('#'+i).value='');POS.forEach((_,i)=>{$('#L'+i).value='';$('#R'+i).value=''});$('#cp').innerHTML=''}
@@ -57,6 +57,6 @@ const row=[$('#dt').value,sh,sf,n($('#dv').value),n($('#cy').value),...L,...R,[.
 try{$('#sv').disabled=true;toast('กำลังบันทึก...');await api('add',{row});clearForm();toast('บันทึกแล้ว ✓',1);}catch(e){toast('บันทึกไม่สำเร็จ: '+e)}finally{$('#sv').disabled=false}};
 $('#dt').value=today;const h=T.getHours();sh=h<8?'ด':h<16?'ช':'บ';sync();
 if(API.indexOf('http')!==0)toast('ยังไม่ได้ใส่ URL ของ Apps Script ในไฟล์ index.html (บรรทัด const API)');
-else fetch(API).then(r=>r.json()).then(j=>{staff=j.staff;$('#sfc').innerHTML=staff.map((x,i)=>`<button type="button" class="chip" data-i="${i}">${esc(x.replace(/^(น\.ส\.|นาย|นาง)\s*/,''))}</button>`).join('');sync()}).catch(e=>toast('เชื่อมต่อไม่ได้: '+e));
+else fetch(API).then(r=>r.json()).then(j=>{staff=j.staff;$('#sfc').innerHTML='<option value="">— เลือกชื่อเจ้าหน้าที่ —</option>'+staff.map((x,i)=>`<option value="${i}">${esc(x)}</option>`).join('');sync()}).catch(e=>toast('เชื่อมต่อไม่ได้: '+e));
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
